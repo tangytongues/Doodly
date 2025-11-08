@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DOODLY — Collaborative Canvas</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="topbar">
+    <input id="nameInput" placeholder="Your name" />
+    <input id="roomInput" placeholder="Room (default)" />
+    <button id="joinBtn">Join</button>
+    <label>Tool:
+      <select id="toolSelect">
+        <option value="brush">Brush</option>
+        <option value="eraser">Eraser</option>
+      </select>
+    </label>
+    <label>Size:
+      <input id="sizeInput" type="range" min="1" max="40" value="4" />
+    </label>
+    <label>Color:
+      <input id="colorInput" type="color" value="#1abc9c"/>
+    </label>
+    <button id="undoBtn">Undo</button>
+    <button id="redoBtn">Redo</button>
+  </div>
+
+  <div id="canvasWrap">
+    <canvas id="drawCanvas"></canvas>
+    <div id="cursors"></div>
+  </div>
+
+  <div id="sidebar">
+    <h3>Users</h3>
+    <ul id="usersList"></ul>
+    <h3>Logs</h3>
+    <div id="logArea"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="websocket.js"></script>
+  <script src="canvas.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
