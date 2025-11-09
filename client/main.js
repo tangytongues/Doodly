@@ -1,58 +1,89 @@
 // client/main.js
 document.addEventListener("DOMContentLoaded", () => {
-  // initialize socket connection
-  if (window.SocketClient) SocketClient.connect();
+  // Grab sections
+  const welcomePage = document.getElementById("welcome-page");
+  const roomPage = document.getElementById("room-page");
+  const canvasPage = document.getElementById("canvas-page");
 
+  // Buttons
   const joinBtn = document.getElementById("joinBtn");
+  const toRoomsLink = document.getElementById("toRooms");
+  const joinRoomBtn = document.getElementById("joinRoomBtn");
+  const createRoomBtn = document.getElementById("createRoomBtn");
+  const leaveRoomBtn = document.getElementById("leaveRoomBtn");
+
+  // Inputs
   const nameInput = document.getElementById("nameInput");
   const roomInput = document.getElementById("roomInput");
-  const toolSelect = document.getElementById("toolSelect");
-  const sizeInput = document.getElementById("sizeInput");
-  const colorInput = document.getElementById("colorInput");
-  const undoBtn = document.getElementById("undoBtn");
-  const redoBtn = document.getElementById("redoBtn");
 
-  // join button
+  // Helper to show sections
+  function showSection(section) {
+    [welcomePage, roomPage, canvasPage].forEach((s) =>
+      s.classList.remove("active")
+    );
+    section.classList.add("active");
+  }
+
+  // Go to room list
+  toRoomsLink.addEventListener("click", () => {
+    showSection(roomPage);
+  });
+
+  // Join from welcome page
   joinBtn.addEventListener("click", () => {
-    const name = nameInput.value || "Anon";
-    const room = roomInput.value || "default";
-    SocketClient.join(room, name);
-    console.log("Joined room:", room, "as", name);
-  });
-
-  // tool select
-  toolSelect.addEventListener("change", (e) => {
-    if (window.CanvasApp) window.CanvasApp.setTool(e.target.value);
-  });
-
-  // brush size
-  sizeInput.addEventListener("input", (e) => {
-    if (window.CanvasApp) window.CanvasApp.setWidth(parseInt(e.target.value));
-  });
-
-  // color
-  colorInput.addEventListener("input", (e) => {
-    if (window.CanvasApp) window.CanvasApp.setColor(e.target.value);
-  });
-
-  // undo
-  undoBtn.addEventListener("click", () => {
-    if (window.CanvasApp) window.CanvasApp.undo();
-  });
-
-  // redo
-  redoBtn.addEventListener("click", () => {
-    if (window.CanvasApp) window.CanvasApp.redo();
-  });
-
-  // keyboard shortcuts
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-      e.preventDefault();
-      if (window.CanvasApp) window.CanvasApp.undo();
-    } else if ((e.ctrlKey || e.metaKey) && e.key === "y") {
-      e.preventDefault();
-      if (window.CanvasApp) window.CanvasApp.redo();
+    const name = nameInput.value.trim();
+    const room = roomInput.value.trim();
+    if (!name || !room) {
+      alert("Please enter both name and room name!");
+      return;
     }
+    joinRoom(name, room);
   });
+
+  // Join from room list
+  joinRoomBtn.addEventListener("click", () => {
+    const selected = document.querySelector("#roomList .selected");
+    if (!selected) {
+      alert("Please select a room first!");
+      return;
+    }
+    const name = nameInput.value.trim() || "Guest";
+    joinRoom(name, selected.innerText.trim());
+  });
+
+  // Create new room
+  createRoomBtn.addEventListener("click", () => {
+    const newRoom = prompt("Enter a new room name:");
+    if (!newRoom) return;
+    const name = nameInput.value.trim() || "Guest";
+    joinRoom(name, newRoom);
+  });
+
+  // Leave room
+  leaveRoomBtn.addEventListener("click", () => {
+    if (window.SocketClient && SocketClient.leave) SocketClient.leave();
+    showSection(welcomePage);
+  });
+
+  // Clicking on a room highlights it
+  document.querySelectorAll("#roomList li").forEach((li) => {
+    li.addEventListener("click", () => {
+      document.querySelectorAll("#roomList li").forEach((l) =>
+        l.classList.remove("selected")
+      );
+      li.classList.add("selected");
+    });
+  });
+
+  // Join + show canvas
+  function joinRoom(name, room) {
+    console.log(`Joining room: ${room} as ${name}`);
+    showSection(canvasPage);
+    if (window.SocketClient) {
+      SocketClient.connect();
+      SocketClient.join(room, name);
+    }
+  }
+
+  console.log("✅ Doodly UI navigation ready");
 });

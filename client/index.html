@@ -1,47 +1,118 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>DOODLY — Collaborative Canvas</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Doodly 🎨</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="topbar">
-    <input id="nameInput" placeholder="Your name" />
-    <input id="roomInput" placeholder="Room (default)" />
-    <button id="joinBtn">Join</button>
-    <label>Tool:
-      <select id="toolSelect">
-        <option value="brush">Brush</option>
-        <option value="eraser">Eraser</option>
-      </select>
-    </label>
-    <label>Size:
-      <input id="sizeInput" type="range" min="1" max="40" value="4" />
-    </label>
-    <label>Color:
-      <input id="colorInput" type="color" value="#1abc9c"/>
-    </label>
-    <button id="undoBtn">Undo</button>
-    <button id="redoBtn">Redo</button>
+
+  <!-- ====== WELCOME PAGE ====== -->
+  <section id="welcome-page" class="active">
+    <div class="logo">🎨 Doodly</div>
+
+    <div class="center-box">
+      <h1>Welcome to Doodly</h1>
+      <p>Collaborate. Draw. Create together in real time!</p>
+
+      <input id="nameInput" type="text" placeholder="Enter your Name" />
+      <input id="roomInput" type="text" placeholder="Enter Room Name" />
+
+      <button id="joinBtn">Join Room</button>
+      <p class="link" id="toRooms">Join Existing Rooms</p>
+    </div>
+
+    <footer>Created by Victor Khangembam @tangytongues</footer>
+  </section>
+
+  <!-- ====== ROOM SELECTION PAGE ====== -->
+  <section id="room-page">
+    <div class="logo">🎨 Doodly</div>
+
+    <div class="center-box">
+      <h2>Available Rooms:</h2>
+      <ul id="roomList">
+        <li>TestRoom1</li>
+        <li>TestRoom2</li>
+        <li class="selected">TestRoom3</li>
+      </ul>
+      <button id="joinRoomBtn">Join Room</button>
+      <p class="link" id="createRoomBtn">Create Room</p>
+    </div>
+
+    <footer>Created by Victor Khangembam @tangytongues</footer>
+  </section>
+
+  <!-- ====== CANVAS PAGE ====== -->
+ <!-- ====== CANVAS PAGE ====== -->
+<section id="canvas-page">
+  <div class="canvas-header">
+    <div class="logo">🎨 Doodly</div>
   </div>
 
-  <div id="canvasWrap">
+  <div class="toolbar">
+    <button class="tool" id="eraserBtn">
+      <img src="icons/eraser.svg" alt="eraser" />
+      <span>eraser</span>
+    </button>
+    <button class="tool" id="pencilBtn">
+      <img src="icons/pencil.svg" alt="pencil" />
+      <span>pencil</span>
+    </button>
+
+    <div class="color-palette">
+      <div class="color" style="background:#fff;"></div>
+      <div class="color" style="background:#e74c3c;"></div>
+      <div class="color" style="background:#f1c40f;"></div>
+      <div class="color" style="background:#27ae60;"></div>
+    </div>
+
+    <input type="color" id="colorPicker" />
+    <label for="colorPicker">color picker</label>
+
+    <div class="size-slider">
+      <input type="range" id="brushSize" min="1" max="30" value="4" />
+      <label for="brushSize">size</label>
+    </div>
+
+    <button id="undoBtn" class="action-btn">↩ Undo</button>
+    <button id="redoBtn" class="action-btn">↪ Redo</button>
+  </div>
+
+  <div class="workspace">
     <canvas id="drawCanvas"></canvas>
-    <div id="cursors"></div>
+
+    <aside class="chat">
+      <div class="chat-header">
+        <h3>ChatRoom</h3>
+        <button id="leaveRoomBtn">⬅ Leave Room</button>
+      </div>
+
+      <div id="chatMessages" class="chat-messages">
+        <div class="message from-other">
+          <b>Victor</b>
+          <p>Hey, can you change the color?</p>
+        </div>
+        <div class="message from-you">
+          <b>You</b>
+          <p>yeah, sure man</p>
+        </div>
+      </div>
+
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Type your message here..." />
+        <button id="sendChatBtn">Send</button>
+      </div>
+    </aside>
   </div>
 
-  <div id="sidebar">
-    <h3>Users</h3>
-    <ul id="usersList"></ul>
-    <h3>Logs</h3>
-    <div id="logArea"></div>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="websocket.js"></script>
-  <script src="canvas.js"></script>
-  <script src="main.js"></script>
+  <footer>Created by Victor Khangembam @tangytongues</footer>
+</section>
+<script src="/socket.io/socket.io.js"></script>
+<script src="websocket.js"></script>
+<script src="canvas.js"></script>
+<script src="chat.js"></script>
+<script src="main.js"></script>
 </body>
 </html>

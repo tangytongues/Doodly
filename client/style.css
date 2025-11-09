@@ -1,15 +1,348 @@
-:root { --bg:#f7f8fa; --accent:#222; }
-* { box-sizing: border-box; }
-body { margin:0; font-family: system-ui, Arial, sans-serif; display:flex; height:100vh; }
-#topbar { position:fixed; left:0; right:320px; top:0; height:48px; background:#fff; display:flex; gap:8px; align-items:center; padding:6px 10px; border-bottom:1px solid #eee; z-index:20; }
-#canvasWrap { margin-top:48px; flex:1; position:relative; background:var(--bg); display:flex; align-items:center; justify-content:center; overflow:hidden; }
-#drawCanvas { width:100%; height:100%; display:block; background: #fff; }
-#sidebar { width:320px; background:#fff; border-left:1px solid #eee; padding:10px; box-sizing:border-box; overflow:auto; }
-#usersList { list-style:none; padding:0; margin:0 0 12px 0; }
-#usersList li { margin:6px 0; display:flex; gap:8px; align-items:center; }
-.colorDot { width:14px; height:14px; border-radius:50%; display:inline-block; border:1px solid #ddd; }
-#logArea { font-size:12px; color:#555; height:200px; overflow:auto; background:#fafafa; padding:6px; border-radius:4px; border:1px solid #f0f0f0; }
-#cursors { pointer-events:none; position:absolute; left:0; top:0; right:0; bottom:0; }
-.cursor { position:absolute; transform:translate(-50%,-50%); background:rgba(255,255,255,0.95); border-radius:4px; padding:2px 6px; font-size:12px; border:1px solid #ddd; display:flex; gap:6px; align-items:center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-#topbar input, #topbar select, #topbar button { font-size:13px; padding:6px; }
-#topbar input[type="color"] { padding:2px; height:30px; width:40px; }
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+}
+
+body {
+  background: #16a085;
+  color: #fff;
+  height: 100vh;
+  overflow: hidden;
+}
+
+section {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+section.active {
+  display: flex;
+}
+
+/* ===== Logo ===== */
+.logo {
+  position: absolute;
+  top: 20px;
+  left: 30px;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+/* ===== Center Box (shared for welcome/room) ===== */
+.center-box {
+  background: rgba(255,255,255,0.2);
+  padding: 30px 40px;
+  border-radius: 20px;
+  text-align: center;
+  width: 320px;
+}
+
+.center-box h1, .center-box h2 {
+  color: #fff;
+  margin-bottom: 15px;
+}
+
+.center-box p {
+  margin-bottom: 20px;
+  color: #f5f5f5;
+}
+
+.center-box input {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.3);
+  color: #fff;
+  outline: none;
+}
+
+.center-box button {
+  background: rgba(255,255,255,0.7);
+  color: #16a085;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  width: 100%;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.center-box button:hover {
+  background: #fff;
+}
+
+.center-box .link {
+  margin-top: 10px;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* ===== Room List ===== */
+#roomList {
+  list-style: none;
+  margin: 20px 0;
+}
+
+#roomList li {
+  background: rgba(255,255,255,0.3);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+#roomList li:hover {
+  background: rgba(255,255,255,0.5);
+}
+
+#roomList li.selected {
+  background: #1abc9c;
+  color: #fff;
+}
+
+/* ===== Canvas Page ===== */
+.toolbar {
+  background: rgba(255,255,255,0.5);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+.toolbar .tool {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #333;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.color-palette {
+  display: flex;
+  gap: 5px;
+}
+
+.color {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+}
+
+.size-slider input {
+  accent-color: magenta;
+}
+
+.workspace {
+  display: flex;
+  width: 95%;
+  height: 75%;
+  background: #f5f5f5;
+  border-radius: 10px;
+  margin-top: 15px;
+}
+
+#drawCanvas {
+  flex: 1;
+  border-radius: 10px 0 0 10px;
+  background: #fff;
+}
+
+.chat {
+  width: 280px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 0 10px 10px 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.chat h3 {
+  color: #16a085;
+  margin: 5px 0;
+}
+
+.leave-room {
+  text-align: right;
+}
+
+.leave-room button {
+  background: #16a085;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#chatMessages {
+  flex: 1;
+  overflow-y: auto;
+  margin: 10px 0;
+}
+
+.message {
+  background: rgba(255,255,255,0.7);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 10px;
+  max-width: 80%;
+}
+
+.from-you {
+  align-self: flex-end;
+  background: #e6ddd4;
+}
+
+.chat-input {
+  display: flex;
+  gap: 5px;
+}
+
+.chat-input input {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.chat-input button {
+  background: #16a085;
+  border: none;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* ===== Footer ===== */
+footer {
+  position: absolute;
+  bottom: 10px;
+  color: #ffdc00;
+  font-size: 0.8rem;
+}
+/* --- Toolbar icons --- */
+.toolbar img {
+  width: 28px;
+  height: 28px;
+}
+
+.toolbar .tool {
+  background: rgba(255, 255, 255, 0.6);
+  border: none;
+  border-radius: 12px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toolbar .tool:hover {
+  transform: scale(1.05);
+  background: #fff;
+}
+
+.toolbar .tool.active {
+  background: #1abc9c;
+  color: #fff;
+}
+
+/* --- Workspace alignment fix --- */
+.workspace {
+  display: flex;
+  align-items: stretch;
+  width: 95%;
+  height: 75%;
+  background: #f5f5f5;
+  border-radius: 10px;
+  margin-top: 15px;
+}
+
+/* --- Chat panel unified box --- */
+.chat {
+  width: 280px;
+  background: rgba(255, 255, 255, 0.6);
+  border-left: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 0 10px 10px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  padding: 10px;
+}
+
+.chat-header h3 {
+  color: #16a085;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.chat-header button {
+  background: #16a085;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.chat-header button:hover {
+  background: #138f75;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.chat-input {
+  display: flex;
+  gap: 5px;
+  padding: 10px;
+  background: rgba(255,255,255,0.4);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.chat-input input {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.chat-input button {
+  background: #16a085;
+  border: none;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}

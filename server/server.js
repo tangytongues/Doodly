@@ -1,168 +1,137 @@
 // server/server.js
-const express = require('express');
-const http = require('http');
-const path = require('path');
-const { Server } = require('socket.io');
-const { ensureRoom, globalRooms } = require('./rooms');
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
-const httpServer = http.createServer(app);
-const io = new Server(httpServer, { cors: { origin: '*' } });
+const server = http.createServer(app);
+const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
-// Serve client static files (client folder)
-app.use('/', express.static(path.join(__dirname, '..', 'client')));
+// ✅ Serve static frontend files (fixes websocket.js 404 issue)
+app.use(express.static(path.join(__dirname, "../client")));
 
-// Basic health endpoint
-app.get('/health', (_, res) => res.json({ status: 'ok', ts: Date.now() }));
+// Serve main page
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/index.html"));
+});
 
-io.on('connection', (socket) => {
-  console.log('socket connected', socket.id);
+// ---- Data structures ----
+const rooms = {}; // { roomId: { users: Set, history: [] } }
 
-  // store current room for socket (simple)
-  socket._currentRoom = null;
+// ---- Socket.io connections ----
+io.on("connection", (socket) => {
+  console.log("🟢 New client connected:", socket.id);
 
-  socket.on('join', ({ roomId, name }) => {
-    const rid = roomId || 'default';
-    socket.join(rid);
-    socket._currentRoom = rid;
+  // Join a room
+  socket.on("join", ({ roomId, name }) => {
+    if (!roomId) return;
 
-    const room = ensureRoom(rid);
-    const client = { id: socket.id, name: name || 'Anon', color: room.assignColor() };
-    room.clients.set(socket.id, client);
+    socket.join(roomId);
+    socket.data.roomId = roomId;
+    socket.data.name = name || `User-${socket.id.slice(0, 4)}`;
 
-    // send joined event with current opLog (small scale)
-    socket.emit('joined', {
-      clientId: socket.id,
-      roomId: rid,
-      clients: Array.from(room.clients.values()),
-      stateVersion: room.seq,
-      opLog: room.opLog
+    if (!rooms[roomId]) {
+      rooms[roomId] = { users: new Set(), history: [] };
+    }
+
+    rooms[roomId].users.add(socket.id);
+
+    console.log(`👤 ${socket.data.name} joined room ${roomId}`);
+
+    // Notify the joining user
+    socket.emit("joined", { roomId, name: socket.data.name });
+
+    // Send room user list
+    updateRoomClients(roomId);
+
+    // Send recent drawings if available
+    const history = rooms[roomId].history || [];
+    if (history.length > 0) {
+      history.forEach((stroke) => socket.emit("op", { seq: 0, op: stroke }));
+    }
+  });
+
+  // ---- Drawing stroke events ----
+  socket.on("stroke_full", (strokeData) => {
+    const roomId = socket.data.roomId;
+    if (!roomId) return;
+
+    // Save to room history
+    rooms[roomId].history.push({
+      type: "stroke_full",
+      color: strokeData.color,
+      width: strokeData.width,
+      points: strokeData.points,
     });
 
-    // broadcast current clients to everyone in room
-    io.to(rid).emit('clients', Array.from(room.clients.values()));
-    console.log(`[${rid}] ${client.name} joined (${socket.id})`);
-  });
-
-  socket.on('stroke_chunk', (msg) => {
-    // msg: { roomId, strokeId, color, width, points, isFinal }
-    const rid = msg.roomId || socket._currentRoom || 'default';
-    const room = ensureRoom(rid);
-    room.seq += 1;
-    const op = {
-      type: 'stroke_chunk',
-      strokeId: msg.strokeId,
-      userId: socket.id,
-      userName: room.clients.get(socket.id)?.name || 'Anon',
-      color: msg.color,
-      width: msg.width,
-      points: msg.points || [],
-      isFinal: !!msg.isFinal,
-      timestamp: Date.now()
-    };
-    room.opLog.push({ seq: room.seq, op });
-    room.activeSet.add(room.seq);
-    io.to(rid).emit('op', { seq: room.seq, op });
-  });
-
-  socket.on('stroke_full', (msg) => {
-    const rid = msg.roomId || socket._currentRoom || 'default';
-    const room = ensureRoom(rid);
-    room.seq += 1;
-    const op = {
-      type: 'stroke',
-      strokeId: msg.strokeId,
-      userId: socket.id,
-      userName: room.clients.get(socket.id)?.name || 'Anon',
-      color: msg.color,
-      width: msg.width,
-      points: msg.points || [],
-      timestamp: Date.now()
-    };
-    room.opLog.push({ seq: room.seq, op });
-    room.activeSet.add(room.seq);
-    io.to(rid).emit('op', { seq: room.seq, op });
-  });
-
-  socket.on('undo', ({ roomId }) => {
-    const rid = roomId || socket._currentRoom || 'default';
-    const room = ensureRoom(rid);
-    // find last active op that is a stroke or chunk
-    let lastSeq = null;
-    for (let i = room.opLog.length - 1; i >= 0; --i) {
-      const e = room.opLog[i];
-      if (!room.activeSet.has(e.seq)) continue;
-      if (e.op.type === 'stroke' || e.op.type === 'stroke_chunk') {
-        lastSeq = e.seq;
-        break;
-      }
-    }
-    if (lastSeq != null) {
-      room.seq += 1;
-      const op = {
-        type: 'undo',
-        targetSeq: lastSeq,
-        userId: socket.id,
-        userName: room.clients.get(socket.id)?.name || 'Anon',
-        timestamp: Date.now()
-      };
-      room.opLog.push({ seq: room.seq, op });
-      room.activeSet.delete(lastSeq);
-      room.undoStack.push(lastSeq);
-      io.to(rid).emit('op', { seq: room.seq, op });
-    }
-  });
-
-  socket.on('redo', ({ roomId }) => {
-    const rid = roomId || socket._currentRoom || 'default';
-    const room = ensureRoom(rid);
-    const targetSeq = room.undoStack.pop();
-    if (targetSeq != null) {
-      room.seq += 1;
-      const op = {
-        type: 'redo',
-        targetSeq,
-        userId: socket.id,
-        userName: room.clients.get(socket.id)?.name || 'Anon',
-        timestamp: Date.now()
-      };
-      room.opLog.push({ seq: room.seq, op });
-      room.activeSet.add(targetSeq);
-      io.to(rid).emit('op', { seq: room.seq, op });
-    }
-  });
-
-  socket.on('cursor', ({ roomId, x, y }) => {
-    const rid = roomId || socket._currentRoom || 'default';
-    socket.to(rid).emit('cursor', {
-      userId: socket.id,
-      x, y,
-      name: (ensureRoom(rid).clients.get(socket.id)?.name || 'Anon')
+    // Broadcast to others in the room
+    socket.to(roomId).emit("op", {
+      seq: Date.now(),
+      op: strokeData,
     });
   });
 
-  socket.on('request_state', ({ roomId }) => {
-    const rid = roomId || socket._currentRoom || 'default';
-    const room = ensureRoom(rid);
-    socket.emit('state', { seq: room.seq, opLog: room.opLog, clients: Array.from(room.clients.values()) });
+  // ---- Undo / Redo ----
+  socket.on("undo", () => {
+    const roomId = socket.data.roomId;
+    if (!roomId) return;
+
+    if (rooms[roomId].history.length > 0) {
+      rooms[roomId].history.pop();
+      io.to(roomId).emit("op", { seq: Date.now(), op: { type: "undo" } });
+    }
   });
 
-  socket.on('disconnect', () => {
-    const rid = socket._currentRoom;
-    if (rid) {
-      const room = ensureRoom(rid);
-      if (room.clients.has(socket.id)) {
-        const name = room.clients.get(socket.id).name;
-        room.clients.delete(socket.id);
-        io.to(rid).emit('clients', Array.from(room.clients.values()));
-        console.log(`[${rid}] ${name} disconnected (${socket.id})`);
-      }
+  socket.on("redo", () => {
+    // (optional - not storing redo stack globally yet)
+    console.log("Redo requested (not yet implemented globally)");
+  });
+
+  // ---- Chat feature ----
+  socket.on("chat", (data) => {
+    const roomId = socket.data.roomId;
+    if (!roomId) return;
+    io.to(roomId).emit("chat", {
+      name: data.name || "Anonymous",
+      message: data.message,
+      time: new Date().toLocaleTimeString(),
+    });
+  });
+
+  // ---- Handle disconnection ----
+  socket.on("disconnect", () => {
+    const roomId = socket.data.roomId;
+    if (!roomId || !rooms[roomId]) return;
+
+    rooms[roomId].users.delete(socket.id);
+    console.log(`🔴 ${socket.data.name} left room ${roomId}`);
+
+    // Remove room if empty
+    if (rooms[roomId].users.size === 0) {
+      delete rooms[roomId];
+      console.log(`🗑️ Room ${roomId} deleted (empty)`);
+    } else {
+      updateRoomClients(roomId);
     }
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`DOODLY server listening on http://localhost:${PORT}`);
+// ---- Helper: update room users ----
+function updateRoomClients(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  const clients = Array.from(room.users).map((id) => {
+    const s = io.sockets.sockets.get(id);
+    return s?.data?.name || "Guest";
+  });
+  io.to(roomId).emit("clients", clients);
+  io.emit("roomList", Object.keys(rooms)); // broadcast list to all
+}
+
+// ---- Start server ----
+server.listen(PORT, () => {
+  console.log(`🚀 DOODLY server running at http://localhost:${PORT}`);
 });
